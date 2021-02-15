@@ -6,6 +6,7 @@
 
 // Author: Shuo Chen (chenshuo at chenshuo dot com)
 
+/* OK */
 #include "muduo/net/SocketsOps.h"
 
 #include "muduo/base/Logging.h"
@@ -49,31 +50,37 @@ void setNonBlockAndCloseOnExec(int sockfd)
 
 }  // namespace
 
+/*  sockaddr_in6* -> const sockaddr* */
 const struct sockaddr* sockets::sockaddr_cast(const struct sockaddr_in6* addr)
 {
   return static_cast<const struct sockaddr*>(implicit_cast<const void*>(addr));
 }
 
+/*  sockaddr_in6* -> sockaddr* */
 struct sockaddr* sockets::sockaddr_cast(struct sockaddr_in6* addr)
 {
   return static_cast<struct sockaddr*>(implicit_cast<void*>(addr));
 }
 
+/*  sockaddr_in* -> sockaddr* */
 const struct sockaddr* sockets::sockaddr_cast(const struct sockaddr_in* addr)
 {
   return static_cast<const struct sockaddr*>(implicit_cast<const void*>(addr));
 }
 
+/* const sockaddr* ->const sockaddr_in* */
 const struct sockaddr_in* sockets::sockaddr_in_cast(const struct sockaddr* addr)
 {
   return static_cast<const struct sockaddr_in*>(implicit_cast<const void*>(addr));
 }
 
+/* const sockaddr* ->const sockaddr_in6 */
 const struct sockaddr_in6* sockets::sockaddr_in6_cast(const struct sockaddr* addr)
 {
   return static_cast<const struct sockaddr_in6*>(implicit_cast<const void*>(addr));
 }
 
+/* 创建套接字 注意到：SOCK_NONBLOCK | SOCK_CLOEXEC */
 int sockets::createNonblockingOrDie(sa_family_t family)
 {
 #if VALGRIND
@@ -94,6 +101,7 @@ int sockets::createNonblockingOrDie(sa_family_t family)
   return sockfd;
 }
 
+/* bind 注意到：bind 的addr 大小是指定sockaddr_in6 sockaddr_in6 */
 void sockets::bindOrDie(int sockfd, const struct sockaddr* addr)
 {
   int ret = ::bind(sockfd, addr, static_cast<socklen_t>(sizeof(struct sockaddr_in6)));
@@ -103,6 +111,9 @@ void sockets::bindOrDie(int sockfd, const struct sockaddr* addr)
   }
 }
 
+/* SOMAXCONN:Maximum queue length specifiable by listen.
+  可以通过参数修改 ，超过该连接数会拒绝连接
+ */
 void sockets::listenOrDie(int sockfd)
 {
   int ret = ::listen(sockfd, SOMAXCONN);
@@ -112,8 +123,10 @@ void sockets::listenOrDie(int sockfd)
   }
 }
 
+/* accept4 可以直接设置 SOCK_NONBLOCK | SOCK_CLOEXEC */
 int sockets::accept(int sockfd, struct sockaddr_in6* addr)
 {
+  /* 注意这里必须先指定addrlen长度，否则会出错 */
   socklen_t addrlen = static_cast<socklen_t>(sizeof *addr);
 #if VALGRIND || defined (NO_ACCEPT4)
   int connfd = ::accept(sockfd, sockaddr_cast(addr), &addrlen);
@@ -192,10 +205,11 @@ void sockets::shutdownWrite(int sockfd)
   }
 }
 
+/* sockaddr 将ip port填入到一块buf里面  */
 void sockets::toIpPort(char* buf, size_t size,
                        const struct sockaddr* addr)
 {
-  toIp(buf,size, addr);
+  toIp(buf, size, addr);
   size_t end = ::strlen(buf);
   const struct sockaddr_in* addr4 = sockaddr_in_cast(addr);
   uint16_t port = sockets::networkToHost16(addr4->sin_port);
@@ -220,6 +234,7 @@ void sockets::toIp(char* buf, size_t size,
   }
 }
 
+/* ip port -> sockaddr_in*/
 void sockets::fromIpPort(const char* ip, uint16_t port,
                          struct sockaddr_in* addr)
 {
@@ -231,6 +246,7 @@ void sockets::fromIpPort(const char* ip, uint16_t port,
   }
 }
 
+/* ip port -> sockaddr_in6*/
 void sockets::fromIpPort(const char* ip, uint16_t port,
                          struct sockaddr_in6* addr)
 {
@@ -242,6 +258,7 @@ void sockets::fromIpPort(const char* ip, uint16_t port,
   }
 }
 
+/* 获得socket的错误 */
 int sockets::getSocketError(int sockfd)
 {
   int optval;
@@ -257,6 +274,7 @@ int sockets::getSocketError(int sockfd)
   }
 }
 
+/* 获得本地的sockaddr_in6地址 */
 struct sockaddr_in6 sockets::getLocalAddr(int sockfd)
 {
   struct sockaddr_in6 localaddr;
@@ -269,6 +287,7 @@ struct sockaddr_in6 sockets::getLocalAddr(int sockfd)
   return localaddr;
 }
 
+/* 获得对端的sockaddr_in6地址 */
 struct sockaddr_in6 sockets::getPeerAddr(int sockfd)
 {
   struct sockaddr_in6 peeraddr;
@@ -281,6 +300,7 @@ struct sockaddr_in6 sockets::getPeerAddr(int sockfd)
   return peeraddr;
 }
 
+/* 判断是否是自连接 */
 bool sockets::isSelfConnect(int sockfd)
 {
   struct sockaddr_in6 localaddr = getLocalAddr(sockfd);

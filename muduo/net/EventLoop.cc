@@ -30,6 +30,7 @@ __thread EventLoop* t_loopInThisThread = 0;
 
 const int kPollTimeMs = 10000;
 
+/* 创建事件描述符 */
 int createEventfd()
 {
   int evtfd = ::eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
@@ -53,9 +54,10 @@ class IgnoreSigPipe
 };
 #pragma GCC diagnostic error "-Wold-style-cast"
 
-IgnoreSigPipe initObj;
+IgnoreSigPipe initObj;/* 程序开始就忽视SIGPIPE信号 */
 }  // namespace
 
+/* 获得当前线程的EventLoop对象指针？ */
 EventLoop* EventLoop::getEventLoopOfCurrentThread()
 {
   return t_loopInThisThread;
@@ -67,14 +69,17 @@ EventLoop::EventLoop()
     eventHandling_(false),
     callingPendingFunctors_(false),
     iteration_(0),
-    threadId_(CurrentThread::tid()),
-    poller_(Poller::newDefaultPoller(this)),
+    threadId_(CurrentThread::tid()),/* 线程ID */
+    poller_(Poller::newDefaultPoller(this)),/* 获得epoll池 */
     timerQueue_(new TimerQueue(this)),
-    wakeupFd_(createEventfd()),
-    wakeupChannel_(new Channel(this, wakeupFd_)),
+    wakeupFd_(createEventfd()),/* 创建用来唤醒Epoll的fd */
+    wakeupChannel_(new Channel(this, wakeupFd_)),/* 并创建相应的频道 */
     currentActiveChannel_(NULL)
 {
   LOG_DEBUG << "EventLoop created " << this << " in thread " << threadId_;
+  /* eventLoop应该在一个独立的新线程，
+  而该线程是不会有t_loopInThisThread缓存的，
+  接着我们填入线程私有的EventLoop指针缓存  */
   if (t_loopInThisThread)
   {
     LOG_FATAL << "Another EventLoop " << t_loopInThisThread
@@ -84,6 +89,7 @@ EventLoop::EventLoop()
   {
     t_loopInThisThread = this;
   }
+  /* 设置用来唤醒的通道的读回调并注册可读事件 */
   wakeupChannel_->setReadCallback(
       std::bind(&EventLoop::handleRead, this));
   // we are always reading the wakeupfd
@@ -94,8 +100,8 @@ EventLoop::~EventLoop()
 {
   LOG_DEBUG << "EventLoop " << this << " of thread " << threadId_
             << " destructs in thread " << CurrentThread::tid();
-  wakeupChannel_->disableAll();
-  wakeupChannel_->remove();
+  wakeupChannel_->disableAll();/* 从Epoll中删除wakeupChannel_ */
+  wakeupChannel_->remove();/* 彻底在map中删除wakeupChannel_ */
   ::close(wakeupFd_);
   t_loopInThisThread = NULL;
 }
@@ -119,6 +125,7 @@ void EventLoop::loop()
     }
     // TODO sort channel by priority
     eventHandling_ = true;
+    /* 处理所有活跃通道的事件 */
     for (Channel* channel : activeChannels_)
     {
       currentActiveChannel_ = channel;
@@ -126,6 +133,7 @@ void EventLoop::loop()
     }
     currentActiveChannel_ = NULL;
     eventHandling_ = false;
+    /* 执行一些只应该在io线程执行的小任务函数 */
     doPendingFunctors();
   }
 
@@ -139,6 +147,8 @@ void EventLoop::quit()
   // There is a chance that loop() just executes while(!quit_) and exits,
   // then EventLoop destructs, then we are accessing an invalid object.
   // Can be fixed using mutex_ in both places.
+  /* EventLoop在析构函数之后后某个线程调用了quit()
+  可能会出现错误 */
   if (!isInLoopThread())
   {
     wakeup();
@@ -201,6 +211,10 @@ void EventLoop::cancel(TimerId timerId)
 void EventLoop::updateChannel(Channel* channel)
 {
   assert(channel->ownerLoop() == this);
+  /* 保证该通道在该EventLoop上面，
+     保证当前是在IO线程，
+     而且现在更新套接字在EPOLL上注册新的事件
+  */
   assertInLoopThread();
   poller_->updateChannel(channel);
 }
@@ -211,6 +225,8 @@ void EventLoop::removeChannel(Channel* channel)
   assertInLoopThread();
   if (eventHandling_)
   {
+    /* 保证当前活跃通道是此通道或
+    在活跃通道列表中找不到该通道*/
     assert(currentActiveChannel_ == channel ||
         std::find(activeChannels_.begin(), activeChannels_.end(), channel) == activeChannels_.end());
   }
@@ -224,6 +240,7 @@ bool EventLoop::hasChannel(Channel* channel)
   return poller_->hasChannel(channel);
 }
 
+/* 如果不是在IO线程,abort */
 void EventLoop::abortNotInLoopThread()
 {
   LOG_FATAL << "EventLoop::abortNotInLoopThread - EventLoop " << this
@@ -231,6 +248,8 @@ void EventLoop::abortNotInLoopThread()
             << ", current thread id = " <<  CurrentThread::tid();
 }
 
+/* 通过写wakeupFd_
+  唤醒epoll_Wait的IO线程 */
 void EventLoop::wakeup()
 {
   uint64_t one = 1;
@@ -241,6 +260,10 @@ void EventLoop::wakeup()
   }
 }
 
+/* 对wakeupFd_的读事件处理，
+  其实就是读一下就完了
+  QUE:多个线程都调用wakeup?
+*/
 void EventLoop::handleRead()
 {
   uint64_t one = 1;
@@ -250,7 +273,8 @@ void EventLoop::handleRead()
     LOG_ERROR << "EventLoop::handleRead() reads " << n << " bytes instead of 8";
   }
 }
-
+/* 通过局部的空向量加锁后交换
+  等待处理的任务函数向量，并执行这些函数， */
 void EventLoop::doPendingFunctors()
 {
   std::vector<Functor> functors;

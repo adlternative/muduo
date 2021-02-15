@@ -8,6 +8,7 @@
 //
 // This is an internal header file, you should not include this.
 
+/* OK */
 #ifndef MUDUO_NET_SOCKET_H
 #define MUDUO_NET_SOCKET_H
 

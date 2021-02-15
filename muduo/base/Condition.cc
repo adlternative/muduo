@@ -1,3 +1,4 @@
+// [ok][FIXME]
 // Use of this source code is governed by a BSD-style license
 // that can be found in the License file.
 //
@@ -8,6 +9,7 @@
 #include <errno.h>
 
 // returns true if time out, false otherwise.
+/* 超时返回true, */
 bool muduo::Condition::waitForSeconds(double seconds)
 {
   struct timespec abstime;

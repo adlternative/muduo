@@ -36,6 +36,10 @@ const int kAdded = 1;
 const int kDeleted = 2;
 }
 
+/*
+绑定loop(基类的构造函数)
+epoll_create1 获得 epoll_fd
+*/
 EPollPoller::EPollPoller(EventLoop* loop)
   : Poller(loop),
     epollfd_(::epoll_create1(EPOLL_CLOEXEC)),
@@ -47,24 +51,29 @@ EPollPoller::EPollPoller(EventLoop* loop)
   }
 }
 
+/* 析构函数中关闭 epoll_fd */
 EPollPoller::~EPollPoller()
 {
   ::close(epollfd_);
 }
 
+/* epoll_wait 可以指定等待时间 */
 Timestamp EPollPoller::poll(int timeoutMs, ChannelList* activeChannels)
 {
   LOG_TRACE << "fd total count " << channels_.size();
+  /* 传入 ChannelList event_ 首个元素的地址 */
   int numEvents = ::epoll_wait(epollfd_,
                                &*events_.begin(),
                                static_cast<int>(events_.size()),
                                timeoutMs);
   int savedErrno = errno;
+  /* 记录时间epoll_wait返回时间 */
   Timestamp now(Timestamp::now());
   if (numEvents > 0)
   {
     LOG_TRACE << numEvents << " events happened";
     fillActiveChannels(numEvents, activeChannels);
+    /* 如果活跃的Channel 的数量和 ChannelList events_ 大小相同 ，events_扩容 */
     if (implicit_cast<size_t>(numEvents) == events_.size())
     {
       events_.resize(events_.size()*2);
@@ -72,6 +81,7 @@ Timestamp EPollPoller::poll(int timeoutMs, ChannelList* activeChannels)
   }
   else if (numEvents == 0)
   {
+    /* 感觉这不像是可能发生的情况？ */
     LOG_TRACE << "nothing happened";
   }
   else
@@ -86,6 +96,7 @@ Timestamp EPollPoller::poll(int timeoutMs, ChannelList* activeChannels)
   return now;
 }
 
+/* 添加到活跃通道列表中 */
 void EPollPoller::fillActiveChannels(int numEvents,
                                      ChannelList* activeChannels) const
 {
@@ -99,21 +110,27 @@ void EPollPoller::fillActiveChannels(int numEvents,
     assert(it != channels_.end());
     assert(it->second == channel);
 #endif
+    /* 通道记录返回的事件类型 */
     channel->set_revents(events_[i].events);
+    /* 活跃的通道中加入该通道 */
     activeChannels->push_back(channel);
   }
 }
 
+/* 在epoll中更新一个通道的注册事件 */
 void EPollPoller::updateChannel(Channel* channel)
 {
   Poller::assertInLoopThread();
   const int index = channel->index();
   LOG_TRACE << "fd = " << channel->fd()
     << " events = " << channel->events() << " index = " << index;
+  /* 如果是“空”的通道或者是已经被删除的通道 */
   if (index == kNew || index == kDeleted)
   {
     // a new one, add with EPOLL_CTL_ADD
     int fd = channel->fd();
+    /* kNew: 那么字典中是找不到的对应的{fd,channel}键值对的，
+      那么我们将它添加到进入字典 */
     if (index == kNew)
     {
       assert(channels_.find(fd) == channels_.end());
@@ -121,14 +138,16 @@ void EPollPoller::updateChannel(Channel* channel)
     }
     else // index == kDeleted
     {
+      /* KDeleted: 字典中还存在该通道 */
       assert(channels_.find(fd) != channels_.end());
       assert(channels_[fd] == channel);
     }
-
+    /*updateChannel之后的channel.index设置为kAdded  */
     channel->set_index(kAdded);
+    /* 在epoll上执行add进行监听新的频道 */
     update(EPOLL_CTL_ADD, channel);
   }
-  else
+  else // index == kAdded
   {
     // update existing one with EPOLL_CTL_MOD/DEL
     int fd = channel->fd();
@@ -136,20 +155,30 @@ void EPollPoller::updateChannel(Channel* channel)
     assert(channels_.find(fd) != channels_.end());
     assert(channels_[fd] == channel);
     assert(index == kAdded);
+    /* 如果一个状态是kAdded的channel执行updateChannel*/
+    /*若没有注册事件*/
     if (channel->isNoneEvent())
     {
+      /* 那么就EPOLL_CTL_DEL
+      去从epoll上取消
+      对该channel的监听 */
       update(EPOLL_CTL_DEL, channel);
+      /* 更新channel的状态为已从epoll删除 */
       channel->set_index(kDeleted);
     }
+    /*若注册了事件*/
     else
     {
+      /* 修改需要监听的事件 */
       update(EPOLL_CTL_MOD, channel);
     }
   }
 }
 
+/* 在epoll中删除一个通道 */
 void EPollPoller::removeChannel(Channel* channel)
 {
+  /* 保证在IO线程 */
   Poller::assertInLoopThread();
   int fd = channel->fd();
   LOG_TRACE << "fd = " << fd;
@@ -158,17 +187,26 @@ void EPollPoller::removeChannel(Channel* channel)
   assert(channel->isNoneEvent());
   int index = channel->index();
   assert(index == kAdded || index == kDeleted);
+  /* 在字典中删除对应的键值对 */
   size_t n = channels_.erase(fd);
   (void)n;
   assert(n == 1);
-
+  /* 如果是一个监听中的频道，
+    我们取消监听 */
   if (index == kAdded)
   {
     update(EPOLL_CTL_DEL, channel);
   }
+  /* 只有在remove的时候
+    才会从原有的键值对从字典中删除,
+    并将通道的index设置为kNew，而update中的
+      update(EPOLL_CTL_DEL, channel);
+    只是将通道从epoll中取消监听,
+  然而channel指针仍然存在。 */
   channel->set_index(kNew);
 }
 
+/* epoll_ctl包装  */
 void EPollPoller::update(int operation, Channel* channel)
 {
   struct epoll_event event;
@@ -191,6 +229,7 @@ void EPollPoller::update(int operation, Channel* channel)
   }
 }
 
+/* epoll_ctl op ->string  */
 const char* EPollPoller::operationToString(int op)
 {
   switch (op)

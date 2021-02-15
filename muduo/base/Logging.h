@@ -32,6 +32,7 @@ class Logger
   class SourceFile
   {
    public:
+    /*  SourceFile的构造函数将绝对路径处理为只剩文件名*/
     template<int N>
     SourceFile(const char (&arr)[N])
       : data_(arr),

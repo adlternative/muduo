@@ -1,3 +1,4 @@
+//[NOT OK]
 // Use of this source code is governed by a BSD-style license
 // that can be found in the License file.
 //
@@ -46,7 +47,7 @@ class Singleton : noncopyable
   static void init()
   {
     value_ = new T();
-    if (!detail::has_no_destroy<T>::value)
+    if (!detail::has_no_destroy<T>::value)//不懂
     {
       ::atexit(destroy);
     }

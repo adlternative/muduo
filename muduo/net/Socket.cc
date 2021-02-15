@@ -6,6 +6,7 @@
 
 // Author: Shuo Chen (chenshuo at chenshuo dot com)
 
+/* OK */
 #include "muduo/net/Socket.h"
 
 #include "muduo/base/Logging.h"
@@ -24,6 +25,7 @@ Socket::~Socket()
   sockets::close(sockfd_);
 }
 
+/* 获得TcpInfo */
 bool Socket::getTcpInfo(struct tcp_info* tcpi) const
 {
   socklen_t len = sizeof(*tcpi);
@@ -31,6 +33,7 @@ bool Socket::getTcpInfo(struct tcp_info* tcpi) const
   return ::getsockopt(sockfd_, SOL_TCP, TCP_INFO, tcpi, &len) == 0;
 }
 
+/*  获得TcpInfo并格式化 */
 bool Socket::getTcpInfoString(char* buf, int len) const
 {
   struct tcp_info tcpi;
@@ -57,16 +60,19 @@ bool Socket::getTcpInfoString(char* buf, int len) const
   return ok;
 }
 
+/* 绑定IP,port */
 void Socket::bindAddress(const InetAddress& addr)
 {
   sockets::bindOrDie(sockfd_, addr.getSockAddr());
 }
 
+/* 监听 数量:SOMAXCONN*/
 void Socket::listen()
 {
   sockets::listenOrDie(sockfd_);
 }
 
+/* 接受一个对端连接 */
 int Socket::accept(InetAddress* peeraddr)
 {
   struct sockaddr_in6 addr;
@@ -79,11 +85,16 @@ int Socket::accept(InetAddress* peeraddr)
   return connfd;
 }
 
+/* 写端关闭 */
 void Socket::shutdownWrite()
 {
   sockets::shutdownWrite(sockfd_);
 }
 
+/* 禁用Nagle's algorithm: 等待直到等到前一个发送数据的ACK返回再发送小数据，对Telnet 可能有帮助。
+但是等待ACK增加了延时。
+https://stackoverflow.com/questions/3761276/when-should-i-use-tcp-nodelay-and-when-tcp-cork
+*/
 void Socket::setTcpNoDelay(bool on)
 {
   int optval = on ? 1 : 0;
@@ -92,6 +103,9 @@ void Socket::setTcpNoDelay(bool on)
   // FIXME CHECK
 }
 
+/* SO_REUSEADDR允许套接字
+  正在使用的端口被另一个SOCKET强制绑定
+  https://lwn.net/Articles/542629/ */
 void Socket::setReuseAddr(bool on)
 {
   int optval = on ? 1 : 0;
@@ -100,6 +114,13 @@ void Socket::setReuseAddr(bool on)
   // FIXME CHECK
 }
 
+  /*  如果多个服务器（进程或线程）分别将选项设置
+    SO_REUSEPORT,则它们可以绑定到同一端口：
+   SO_REUSEPORT的一个论据是，
+  它使得在同一套接字上使用独立启动的进程更加容易。
+  例如，您可以简单地启动新服务器（可能是新版本），
+  然后关闭旧服务器，而不会中断任何服务。
+  */
 void Socket::setReusePort(bool on)
 {
 #ifdef SO_REUSEPORT
@@ -118,6 +139,11 @@ void Socket::setReusePort(bool on)
 #endif
 }
 
+/* 发送心跳包 */
+  /* 使用SO_KEEPALIVE套接字选项调用
+  的getsockopt函数允许应用程序检索
+  keepalive选项的当前状态。
+  */
 void Socket::setKeepAlive(bool on)
 {
   int optval = on ? 1 : 0;

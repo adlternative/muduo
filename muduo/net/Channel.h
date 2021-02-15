@@ -40,6 +40,7 @@ class Channel : noncopyable
   ~Channel();
 
   void handleEvent(Timestamp receiveTime);
+  /* 设置各种回调 */
   void setReadCallback(ReadEventCallback cb)
   { readCallback_ = std::move(cb); }
   void setWriteCallback(EventCallback cb)
@@ -64,7 +65,9 @@ class Channel : noncopyable
   void enableWriting() { events_ |= kWriteEvent; update(); }
   void disableWriting() { events_ &= ~kWriteEvent; update(); }
   void disableAll() { events_ = kNoneEvent; update(); }
+  /* 判断事件可写 */
   bool isWriting() const { return events_ & kWriteEvent; }
+  /* 判断事件可读 */
   bool isReading() const { return events_ & kReadEvent; }
 
   // for Poller
@@ -101,6 +104,7 @@ class Channel : noncopyable
   bool tied_;
   bool eventHandling_;
   bool addedToLoop_;
+  /* 各种回调函数 */
   ReadEventCallback readCallback_;
   EventCallback writeCallback_;
   EventCallback closeCallback_;

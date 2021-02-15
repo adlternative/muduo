@@ -1,3 +1,4 @@
+//[OK]
 // Use of this source code is governed by a BSD-style license
 // that can be found in the License file.
 //
@@ -17,66 +18,59 @@
 // Enable thread safety attributes only with clang.
 // The attributes can be safely erased when compiling with other compilers.
 #if defined(__clang__) && (!defined(SWIG))
-#define THREAD_ANNOTATION_ATTRIBUTE__(x)   __attribute__((x))
+#define THREAD_ANNOTATION_ATTRIBUTE__(x) __attribute__((x))
 #else
-#define THREAD_ANNOTATION_ATTRIBUTE__(x)   // no-op
+#define THREAD_ANNOTATION_ATTRIBUTE__(x) // no-op
 #endif
 
-#define CAPABILITY(x) \
-  THREAD_ANNOTATION_ATTRIBUTE__(capability(x))
+#define CAPABILITY(x) THREAD_ANNOTATION_ATTRIBUTE__(capability(x))
 
-#define SCOPED_CAPABILITY \
-  THREAD_ANNOTATION_ATTRIBUTE__(scoped_lockable)
+#define SCOPED_CAPABILITY THREAD_ANNOTATION_ATTRIBUTE__(scoped_lockable)
 
-#define GUARDED_BY(x) \
-  THREAD_ANNOTATION_ATTRIBUTE__(guarded_by(x))
+#define GUARDED_BY(x) THREAD_ANNOTATION_ATTRIBUTE__(guarded_by(x))
 
-#define PT_GUARDED_BY(x) \
-  THREAD_ANNOTATION_ATTRIBUTE__(pt_guarded_by(x))
+#define PT_GUARDED_BY(x) THREAD_ANNOTATION_ATTRIBUTE__(pt_guarded_by(x))
 
-#define ACQUIRED_BEFORE(...) \
+#define ACQUIRED_BEFORE(...)                                                   \
   THREAD_ANNOTATION_ATTRIBUTE__(acquired_before(__VA_ARGS__))
 
-#define ACQUIRED_AFTER(...) \
+#define ACQUIRED_AFTER(...)                                                    \
   THREAD_ANNOTATION_ATTRIBUTE__(acquired_after(__VA_ARGS__))
 
-#define REQUIRES(...) \
+#define REQUIRES(...)                                                          \
   THREAD_ANNOTATION_ATTRIBUTE__(requires_capability(__VA_ARGS__))
 
-#define REQUIRES_SHARED(...) \
+#define REQUIRES_SHARED(...)                                                   \
   THREAD_ANNOTATION_ATTRIBUTE__(requires_shared_capability(__VA_ARGS__))
 
-#define ACQUIRE(...) \
+#define ACQUIRE(...)                                                           \
   THREAD_ANNOTATION_ATTRIBUTE__(acquire_capability(__VA_ARGS__))
 
-#define ACQUIRE_SHARED(...) \
+#define ACQUIRE_SHARED(...)                                                    \
   THREAD_ANNOTATION_ATTRIBUTE__(acquire_shared_capability(__VA_ARGS__))
 
-#define RELEASE(...) \
+#define RELEASE(...)                                                           \
   THREAD_ANNOTATION_ATTRIBUTE__(release_capability(__VA_ARGS__))
 
-#define RELEASE_SHARED(...) \
+#define RELEASE_SHARED(...)                                                    \
   THREAD_ANNOTATION_ATTRIBUTE__(release_shared_capability(__VA_ARGS__))
 
-#define TRY_ACQUIRE(...) \
+#define TRY_ACQUIRE(...)                                                       \
   THREAD_ANNOTATION_ATTRIBUTE__(try_acquire_capability(__VA_ARGS__))
 
-#define TRY_ACQUIRE_SHARED(...) \
+#define TRY_ACQUIRE_SHARED(...)                                                \
   THREAD_ANNOTATION_ATTRIBUTE__(try_acquire_shared_capability(__VA_ARGS__))
 
-#define EXCLUDES(...) \
-  THREAD_ANNOTATION_ATTRIBUTE__(locks_excluded(__VA_ARGS__))
+#define EXCLUDES(...) THREAD_ANNOTATION_ATTRIBUTE__(locks_excluded(__VA_ARGS__))
 
-#define ASSERT_CAPABILITY(x) \
-  THREAD_ANNOTATION_ATTRIBUTE__(assert_capability(x))
+#define ASSERT_CAPABILITY(x) THREAD_ANNOTATION_ATTRIBUTE__(assert_capability(x))
 
-#define ASSERT_SHARED_CAPABILITY(x) \
+#define ASSERT_SHARED_CAPABILITY(x)                                            \
   THREAD_ANNOTATION_ATTRIBUTE__(assert_shared_capability(x))
 
-#define RETURN_CAPABILITY(x) \
-  THREAD_ANNOTATION_ATTRIBUTE__(lock_returned(x))
+#define RETURN_CAPABILITY(x) THREAD_ANNOTATION_ATTRIBUTE__(lock_returned(x))
 
-#define NO_THREAD_SAFETY_ANALYSIS \
+#define NO_THREAD_SAFETY_ANALYSIS                                              \
   THREAD_ANNOTATION_ATTRIBUTE__(no_thread_safety_analysis)
 
 // End of thread safety annotations }
@@ -85,27 +79,32 @@
 
 #ifdef NDEBUG
 __BEGIN_DECLS
-extern void __assert_perror_fail (int errnum,
-                                  const char *file,
-                                  unsigned int line,
-                                  const char *function)
-    noexcept __attribute__ ((__noreturn__));
+extern void __assert_perror_fail(int errnum, const char *file,
+                                 unsigned int line,
+                                 const char *function) noexcept
+    __attribute__((__noreturn__));
 __END_DECLS
 #endif
 
-#define MCHECK(ret) ({ __typeof__ (ret) errnum = (ret);         \
-                       if (__builtin_expect(errnum != 0, 0))    \
-                         __assert_perror_fail (errnum, __FILE__, __LINE__, __func__);})
+#define MCHECK(ret)                                                            \
+  ({                                                                           \
+    __typeof__(ret) errnum = (ret);                                            \
+    if (__builtin_expect(errnum != 0, 0))                                      \
+      __assert_perror_fail(errnum, __FILE__, __LINE__, __func__);              \
+  })
 
-#else  // CHECK_PTHREAD_RETURN_VALUE
+#else // CHECK_PTHREAD_RETURN_VALUE
 
-#define MCHECK(ret) ({ __typeof__ (ret) errnum = (ret);         \
-                       assert(errnum == 0); (void) errnum;})
+#define MCHECK(ret)                                                            \
+  ({                                                                           \
+    __typeof__(ret) errnum = (ret);                                            \
+    assert(errnum == 0);                                                       \
+    (void)errnum;                                                              \
+  })
 
 #endif // CHECK_PTHREAD_RETURN_VALUE
 
-namespace muduo
-{
+namespace muduo {
 
 // Use as data member of a class, eg.
 //
@@ -118,84 +117,67 @@ namespace muduo
 //   mutable MutexLock mutex_;
 //   std::vector<int> data_ GUARDED_BY(mutex_);
 // };
-class CAPABILITY("mutex") MutexLock : noncopyable
-{
- public:
-  MutexLock()
-    : holder_(0)
-  {
-    MCHECK(pthread_mutex_init(&mutex_, NULL));
-  }
+class CAPABILITY("mutex") MutexLock : noncopyable {
+public:
+  MutexLock() : holder_(0) { MCHECK(pthread_mutex_init(&mutex_, NULL)); }
 
-  ~MutexLock()
-  {
+  ~MutexLock() {
     assert(holder_ == 0);
     MCHECK(pthread_mutex_destroy(&mutex_));
   }
 
   // must be called when locked, i.e. for assertion
-  bool isLockedByThisThread() const
-  {
-    return holder_ == CurrentThread::tid();
-  }
+  bool isLockedByThisThread() const { return holder_ == CurrentThread::tid(); }
 
-  void assertLocked() const ASSERT_CAPABILITY(this)
-  {
+  void assertLocked() const ASSERT_CAPABILITY(this) {
     assert(isLockedByThisThread());
   }
 
   // internal usage
 
-  void lock() ACQUIRE()
-  {
+  void lock() ACQUIRE() {
     MCHECK(pthread_mutex_lock(&mutex_));
-    assignHolder();
+    assignHolder(); /* 填充拥有者为当前线程id */
   }
 
-  void unlock() RELEASE()
-  {
-    unassignHolder();
+  void unlock() RELEASE() {
+    unassignHolder(); /* 删除拥有者线程id */
     MCHECK(pthread_mutex_unlock(&mutex_));
   }
 
-  pthread_mutex_t* getPthreadMutex() /* non-const */
+  pthread_mutex_t *getPthreadMutex() /* non-const */
   {
     return &mutex_;
   }
 
- private:
-  friend class Condition;
-
-  class UnassignGuard : noncopyable
-  {
-   public:
-    explicit UnassignGuard(MutexLock& owner)
-      : owner_(owner)
-    {
+private:
+  friend class Condition; /* 友元 */
+  /* 可以看到UnassignGuard是用来清除拥有者线程id的，
+   *在Condition的wait过程中会解锁，这意味着此时我们
+   *可以在cond_wait之前清除拥有者线程信息，等到cond_wait结束后
+   *UnassignGuard对象析构，将锁的拥有线程信息重新填充。
+   */
+  class UnassignGuard : noncopyable {
+  public:
+    explicit UnassignGuard(MutexLock &owner) : owner_(owner) {
       owner_.unassignHolder();
     }
 
-    ~UnassignGuard()
-    {
-      owner_.assignHolder();
-    }
+    ~UnassignGuard() { owner_.assignHolder(); }
 
-   private:
-    MutexLock& owner_;
+  private:
+    MutexLock &owner_;
   };
 
-  void unassignHolder()
-  {
-    holder_ = 0;
-  }
+  void unassignHolder() { holder_ = 0; }
 
-  void assignHolder()
+  void assignHolder() /* 设置拥有者 */
   {
     holder_ = CurrentThread::tid();
   }
 
-  pthread_mutex_t mutex_;
-  pid_t holder_;
+  pthread_mutex_t mutex_; /* 锁的核心 */
+  pid_t holder_;          /* 拥有锁的线程id */
 };
 
 // Use as a stack variable, eg.
@@ -204,30 +186,23 @@ class CAPABILITY("mutex") MutexLock : noncopyable
 //   MutexLockGuard lock(mutex_);
 //   return data_.size();
 // }
-class SCOPED_CAPABILITY MutexLockGuard : noncopyable
-{
- public:
-  explicit MutexLockGuard(MutexLock& mutex) ACQUIRE(mutex)
-    : mutex_(mutex)
-  {
+class SCOPED_CAPABILITY MutexLockGuard : noncopyable {
+public:
+  explicit MutexLockGuard(MutexLock &mutex) ACQUIRE(mutex) : mutex_(mutex) {
     mutex_.lock();
   }
 
-  ~MutexLockGuard() RELEASE()
-  {
-    mutex_.unlock();
-  }
+  ~MutexLockGuard() RELEASE() { mutex_.unlock(); }
 
- private:
-
-  MutexLock& mutex_;
+private:
+  MutexLock &mutex_;
 };
 
-}  // namespace muduo
+} // namespace muduo
 
 // Prevent misuse like:
 // MutexLockGuard(mutex_);
 // A tempory object doesn't hold the lock for long!
 #define MutexLockGuard(x) error "Missing guard object name"
 
-#endif  // MUDUO_BASE_MUTEX_H
+#endif // MUDUO_BASE_MUTEX_H

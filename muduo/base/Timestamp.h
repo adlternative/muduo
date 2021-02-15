@@ -28,6 +28,7 @@ class Timestamp : public muduo::copyable,
   ///
   /// Constucts an invalid Timestamp.
   ///
+  /* 默认时间戳0 */
   Timestamp()
     : microSecondsSinceEpoch_(0)
   {
@@ -37,25 +38,27 @@ class Timestamp : public muduo::copyable,
   /// Constucts a Timestamp at specific time
   ///
   /// @param microSecondsSinceEpoch
+  /* 指定时间的时间戳 */
   explicit Timestamp(int64_t microSecondsSinceEpochArg)
     : microSecondsSinceEpoch_(microSecondsSinceEpochArg)
   {
   }
-
+  /* 交换时间戳 */
   void swap(Timestamp& that)
   {
     std::swap(microSecondsSinceEpoch_, that.microSecondsSinceEpoch_);
   }
 
   // default copy/assignment/dtor are Okay
-
+  /* 变成string的接口 */
   string toString() const;
   string toFormattedString(bool showMicroseconds = true) const;
-
+  /* 合法 */
   bool valid() const { return microSecondsSinceEpoch_ > 0; }
 
   // for internal usage.
   int64_t microSecondsSinceEpoch() const { return microSecondsSinceEpoch_; }
+  /* 从微秒转换成秒 /100000 */
   time_t secondsSinceEpoch() const
   { return static_cast<time_t>(microSecondsSinceEpoch_ / kMicroSecondsPerSecond); }
 
@@ -63,16 +66,18 @@ class Timestamp : public muduo::copyable,
   /// Get time of now.
   ///
   static Timestamp now();
+  /* 返回一个非法值：0 */
   static Timestamp invalid()
   {
     return Timestamp();
   }
 
+  /* 从秒变成微秒*/
   static Timestamp fromUnixTime(time_t t)
   {
     return fromUnixTime(t, 0);
   }
-
+  /* 从秒变成微秒 加上一个指定的微秒值*/
   static Timestamp fromUnixTime(time_t t, int microseconds)
   {
     return Timestamp(static_cast<int64_t>(t) * kMicroSecondsPerSecond + microseconds);
@@ -101,6 +106,7 @@ inline bool operator==(Timestamp lhs, Timestamp rhs)
 /// @return (high-low) in seconds
 /// @c double has 52-bit precision, enough for one-microsecond
 /// resolution for next 100 years.
+/* 差多少秒 */
 inline double timeDifference(Timestamp high, Timestamp low)
 {
   int64_t diff = high.microSecondsSinceEpoch() - low.microSecondsSinceEpoch();
@@ -112,6 +118,7 @@ inline double timeDifference(Timestamp high, Timestamp low)
 ///
 /// @return timestamp+seconds as Timestamp
 ///
+/* 将参数的时间戳添加一定秒数得到结果时间戳 */
 inline Timestamp addTime(Timestamp timestamp, double seconds)
 {
   int64_t delta = static_cast<int64_t>(seconds * Timestamp::kMicroSecondsPerSecond);

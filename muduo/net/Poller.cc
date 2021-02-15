@@ -13,13 +13,14 @@
 using namespace muduo;
 using namespace muduo::net;
 
+/* 池和loop绑定 */
 Poller::Poller(EventLoop* loop)
   : ownerLoop_(loop)
 {
 }
 
 Poller::~Poller() = default;
-
+/* 在池的{fd,Channel}字典中寻找是否含有指定的Channel */
 bool Poller::hasChannel(Channel* channel) const
 {
   assertInLoopThread();

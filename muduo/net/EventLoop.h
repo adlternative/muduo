@@ -106,6 +106,7 @@ class EventLoop : noncopyable
   bool hasChannel(Channel* channel);
 
   // pid_t threadId() const { return threadId_; }
+  /* 可能有些事情只应该在IO线程去做，否则abort */
   void assertInLoopThread()
   {
     if (!isInLoopThread())
@@ -113,6 +114,7 @@ class EventLoop : noncopyable
       abortNotInLoopThread();
     }
   }
+  /* 判断是否在IO线程 */
   bool isInLoopThread() const { return threadId_ == CurrentThread::tid(); }
   // bool callingPendingFunctors() const { return callingPendingFunctors_; }
   bool eventHandling() const { return eventHandling_; }

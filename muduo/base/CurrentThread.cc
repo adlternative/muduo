@@ -13,12 +13,13 @@ namespace muduo
 {
 namespace CurrentThread
 {
+/* 当前线程私有资源设置（这里就是线程号和线程名） */
 __thread int t_cachedTid = 0;
 __thread char t_tidString[32];
 __thread int t_tidStringLength = 6;
 __thread const char* t_threadName = "unknown";
 static_assert(std::is_same<int, pid_t>::value, "pid_t should be int");
-
+/* 调用栈打印 */
 string stackTrace(bool demangle)
 {
   string stack;
