@@ -5,7 +5,7 @@
 // that can be found in the License file.
 
 // Author: Shuo Chen (chenshuo at chenshuo dot com)
-
+/* OK */
 #include "muduo/net/EventLoopThread.h"
 
 #include "muduo/net/EventLoop.h"
@@ -24,6 +24,7 @@ EventLoopThread::EventLoopThread(const ThreadInitCallback& cb,
 {
 }
 
+/* 不安全 */
 EventLoopThread::~EventLoopThread()
 {
   exiting_ = true;
@@ -36,6 +37,7 @@ EventLoopThread::~EventLoopThread()
   }
 }
 
+/* 开始跑 */
 EventLoop* EventLoopThread::startLoop()
 {
   assert(!thread_.started());
@@ -54,10 +56,11 @@ EventLoop* EventLoopThread::startLoop()
   return loop;
 }
 
+/* 线程函数 就是跑loop的地方 */
 void EventLoopThread::threadFunc()
 {
   EventLoop loop;
-
+  /* 初始化操作 */
   if (callback_)
   {
     callback_(&loop);
@@ -71,6 +74,7 @@ void EventLoopThread::threadFunc()
 
   loop.loop();
   //assert(exiting_);
+  /* 退出 */
   MutexLockGuard lock(mutex_);
   loop_ = NULL;
 }

@@ -8,6 +8,7 @@
 //
 // This is a public header file, it must only include public header files.
 
+/* OK */
 #ifndef MUDUO_NET_TIMERID_H
 #define MUDUO_NET_TIMERID_H
 
@@ -23,6 +24,7 @@ class Timer;
 ///
 /// An opaque identifier, for canceling Timer.
 ///
+/* TimerId 和 Timer 相互绑定 */
 class TimerId : public muduo::copyable
 {
  public:

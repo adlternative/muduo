@@ -7,14 +7,13 @@
 // Author: Shuo Chen (chenshuo at chenshuo dot com)
 //
 // This is an internal header file, you should not include this.
-
+/* OK */
 #ifndef MUDUO_NET_TIMER_H
 #define MUDUO_NET_TIMER_H
 
 #include "muduo/base/Atomic.h"
 #include "muduo/base/Timestamp.h"
 #include "muduo/net/Callbacks.h"
-
 namespace muduo
 {
 namespace net
@@ -26,6 +25,7 @@ namespace net
 class Timer : noncopyable
 {
  public:
+  /* 回调函数，时刻（过期时间），时间间隔 （是否重复）*/
   Timer(TimerCallback cb, Timestamp when, double interval)
     : callback_(std::move(cb)),
       expiration_(when),
@@ -33,7 +33,7 @@ class Timer : noncopyable
       repeat_(interval > 0.0),
       sequence_(s_numCreated_.incrementAndGet())
   { }
-
+  /* 调用回调函数 */
   void run() const
   {
     callback_();

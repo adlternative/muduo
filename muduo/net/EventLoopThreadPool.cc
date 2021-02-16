@@ -5,7 +5,7 @@
 // that can be found in the License file.
 
 // Author: Shuo Chen (chenshuo at chenshuo dot com)
-
+/* OK */
 #include "muduo/net/EventLoopThreadPool.h"
 
 #include "muduo/net/EventLoop.h"
@@ -30,6 +30,7 @@ EventLoopThreadPool::~EventLoopThreadPool()
   // Don't delete loop, it's stack variable
 }
 
+/* 创建多个子EventLoopThread */
 void EventLoopThreadPool::start(const ThreadInitCallback& cb)
 {
   assert(!started_);
@@ -51,12 +52,13 @@ void EventLoopThreadPool::start(const ThreadInitCallback& cb)
   }
 }
 
+/* 获得下一个该去的Loop */
 EventLoop* EventLoopThreadPool::getNextLoop()
 {
   baseLoop_->assertInLoopThread();
   assert(started_);
   EventLoop* loop = baseLoop_;
-
+  /* 靠EventLoopThreadPool::next_轮询subEventLoop */
   if (!loops_.empty())
   {
     // round-robin
@@ -70,6 +72,7 @@ EventLoop* EventLoopThreadPool::getNextLoop()
   return loop;
 }
 
+/* hash? 通过hash值获得对应的sub EVENTlOOP */
 EventLoop* EventLoopThreadPool::getLoopForHash(size_t hashCode)
 {
   baseLoop_->assertInLoopThread();
@@ -82,6 +85,7 @@ EventLoop* EventLoopThreadPool::getLoopForHash(size_t hashCode)
   return loop;
 }
 
+/* 获得所有(sub)EventLoop的向量,若无则返回一个MainLoop */
 std::vector<EventLoop*> EventLoopThreadPool::getAllLoops()
 {
   baseLoop_->assertInLoopThread();

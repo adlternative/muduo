@@ -119,6 +119,7 @@ class EventLoop : noncopyable
   // bool callingPendingFunctors() const { return callingPendingFunctors_; }
   bool eventHandling() const { return eventHandling_; }
 
+  /* 上下文？ */
   void setContext(const boost::any& context)
   { context_ = context; }
 

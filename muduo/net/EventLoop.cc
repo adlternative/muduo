@@ -155,6 +155,9 @@ void EventLoop::quit()
   }
 }
 
+/* 如果在IO线程，则直接执行任务函数，
+否则添加供IO线程执行的任务队列中
+（其他线程需要让IO线程完成的异步任务）*/
 void EventLoop::runInLoop(Functor cb)
 {
   if (isInLoopThread())
@@ -167,6 +170,11 @@ void EventLoop::runInLoop(Functor cb)
   }
 }
 
+/* 加锁后向队列中添加任务函数
+如果不是在IO线程或者说现在是在IO线程，但我们正在执行任务
+（我们的新任务并不在当前交换的局部任务向量中），
+我们需要额外的一次唤醒操作（下次唤醒）
+那么唤醒epoll_wait */
 void EventLoop::queueInLoop(Functor cb)
 {
   {
@@ -186,28 +194,33 @@ size_t EventLoop::queueSize() const
   return pendingFunctors_.size();
 }
 
+/* 通过添加定时器 */
 TimerId EventLoop::runAt(Timestamp time, TimerCallback cb)
 {
   return timerQueue_->addTimer(std::move(cb), time, 0.0);
 }
 
+/* 通过添加定时器 */
 TimerId EventLoop::runAfter(double delay, TimerCallback cb)
 {
   Timestamp time(addTime(Timestamp::now(), delay));
   return runAt(time, std::move(cb));
 }
 
+/* 通过添加定时器 */
 TimerId EventLoop::runEvery(double interval, TimerCallback cb)
 {
   Timestamp time(addTime(Timestamp::now(), interval));
   return timerQueue_->addTimer(std::move(cb), time, interval);
 }
 
+/* 通过取消定时器 */
 void EventLoop::cancel(TimerId timerId)
 {
   return timerQueue_->cancel(timerId);
 }
 
+/* 在EventLoop中更新某个频道 */
 void EventLoop::updateChannel(Channel* channel)
 {
   assert(channel->ownerLoop() == this);
@@ -219,6 +232,7 @@ void EventLoop::updateChannel(Channel* channel)
   poller_->updateChannel(channel);
 }
 
+/* 在EventLoop中删除某个频道 */
 void EventLoop::removeChannel(Channel* channel)
 {
   assert(channel->ownerLoop() == this);
@@ -233,6 +247,7 @@ void EventLoop::removeChannel(Channel* channel)
   poller_->removeChannel(channel);
 }
 
+/* EventLoop是否拥有某个通道 */
 bool EventLoop::hasChannel(Channel* channel)
 {
   assert(channel->ownerLoop() == this);

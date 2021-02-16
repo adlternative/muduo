@@ -7,7 +7,7 @@
 // Author: Shuo Chen (chenshuo at chenshuo dot com)
 //
 // This is a public header file, it must only include public header files.
-
+/* OK */
 #ifndef MUDUO_NET_EVENTLOOPTHREAD_H
 #define MUDUO_NET_EVENTLOOPTHREAD_H
 
